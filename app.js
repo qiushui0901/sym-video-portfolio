@@ -18,6 +18,28 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) for (const film of films) film.pause();
 });
 
+for (const control of document.querySelectorAll('select[data-video]')) {
+  const film = document.getElementById(control.dataset.video);
+  let restorePlayback;
+  control.addEventListener('change', () => {
+    const position = film.currentTime || 0;
+    const shouldResume = !film.paused && !film.ended;
+    film.pause();
+    if (restorePlayback) film.removeEventListener('loadedmetadata', restorePlayback);
+    const errorMessage = document.getElementById(`${film.id}-error`);
+    if (errorMessage) errorMessage.hidden = true;
+    restorePlayback = () => {
+      if (Number.isFinite(film.duration)) {
+        film.currentTime = Math.min(position, Math.max(0, film.duration - 0.05));
+      }
+      if (shouldResume) film.play().catch(() => {});
+    };
+    film.addEventListener('loadedmetadata', restorePlayback, { once: true });
+    film.src = control.value === 'hd' ? film.dataset.hdUrl : film.dataset.smoothUrl;
+    film.load();
+  });
+}
+
 const viewer = document.getElementById('image-viewer');
 const galleryLinks = Array.from(document.querySelectorAll('[data-gallery]'));
 if (viewer && galleryLinks.length && typeof viewer.showModal === 'function') {
