@@ -18,6 +18,42 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) for (const film of films) film.pause();
 });
 
+for (const control of document.querySelectorAll('select[data-video]')) {
+  const film = document.getElementById(control.dataset.video);
+  const errorMessage = document.getElementById(`${film.id}-error`);
+  let pendingSwitch;
+  let switchIntent;
+  let qualityGeneration = 0;
+  control.addEventListener('change', () => {
+    // Preserve the original intent if the visitor switches again while a source loads.
+    const intent = switchIntent || {
+      position: film.currentTime || 0,
+      playing: !film.paused && !film.ended,
+    };
+    switchIntent = intent;
+    const generation = ++qualityGeneration;
+    film.pause();
+    if (pendingSwitch) film.removeEventListener('loadedmetadata', pendingSwitch);
+    if (errorMessage) {
+      errorMessage.hidden = true;
+      const media = new URL(control.value, location.href);
+      errorMessage.querySelector('a').href = 'viewer.html?asset=' + encodeURIComponent('assets/' + media.pathname.split('/').pop() + media.search);
+    }
+    pendingSwitch = () => {
+      if (generation !== qualityGeneration) return;
+      if (Number.isFinite(film.duration)) {
+        film.currentTime = Math.min(intent.position, Math.max(0, film.duration - 0.05));
+      }
+      switchIntent = null;
+      if (intent.playing) film.play().catch(() => {});
+    };
+    film.addEventListener('loadedmetadata', pendingSwitch, { once: true });
+    film.src = control.value;
+    film.load();
+  });
+  film.addEventListener('error', () => { switchIntent = null; });
+}
+
 const viewer = document.getElementById('image-viewer');
 const galleryLinks = Array.from(document.querySelectorAll('[data-gallery]'));
 if (viewer && galleryLinks.length && typeof viewer.showModal === 'function') {
@@ -47,7 +83,7 @@ if (viewer && galleryLinks.length && typeof viewer.showModal === 'function') {
     viewerCount.textContent = `${currentImage + 1} / ${galleryLinks.length}`;
     viewerStatus.hidden = true;
     viewerImage.alt = link.dataset.title;
-    viewerImage.src = link.href;
+    viewerImage.src = link.dataset.image || link.href;
     viewerOriginal.href = link.href;
   };
 
