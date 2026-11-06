@@ -1,3 +1,21 @@
+// Older cached HTML can still contain quality controls after this script updates.
+for (const control of document.querySelectorAll('select[data-video]')) {
+  const film = document.getElementById(control.dataset.video);
+  if (film?.tagName === 'VIDEO' && /^[a-z0-9-]+$/.test(film.id)) {
+    const path = `assets/${film.id}.mp4`;
+    const source = film.querySelector('source');
+    const url = `https://sym-qiushui.oss-cn-beijing.aliyuncs.com/portfolio/${path}`;
+    if (source) source.src = url;
+    else film.src = url;
+    film.load();
+    const fallback = 'viewer.html?asset=' + encodeURIComponent(path);
+    for (const link of film.querySelectorAll('a')) link.href = fallback;
+    const errorLink = document.getElementById(`${film.id}-error`)?.querySelector('a');
+    if (errorLink) errorLink.href = fallback;
+  }
+  control.closest('.video-quality')?.remove();
+}
+
 const films = Array.from(document.querySelectorAll('video'));
 for (const film of films) {
   film.addEventListener('play', () => {
